@@ -9,4 +9,9 @@
     <PackageReference Include="Microsoft.Azure.Devices.Provisioning.Service" Version="2.0.0-preview-001" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\forked\provisioning\service\src\Microsoft.Azure.Devices.Provisioning.Service.csproj" />
+    <ProjectReference Include="..\..\..\..\..\forked\shared\src\Microsoft.Azure.Devices.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
