@@ -18,6 +18,10 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 		private readonly string X509AttestationMechanism = "x509";
 		private const string IotHubHostName = "my-iothub-hostname";
 
+        private readonly string OperationCreate = "create";
+        private readonly string OperationUpdate = "update";
+        private readonly string OperationDelete = "delete";
+
         public EnrollmentGroupSample(ProvisioningServiceClient provisioningServiceClient, X509Certificate2 groupIssuerCertificate)
         {
             _provisioningServiceClient = provisioningServiceClient;
@@ -28,9 +32,9 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         {
             await QueryEnrollmentGroupAsync().ConfigureAwait(false);
 
-            await CreateEnrollmentGroupAsync().ConfigureAwait(false);
-            await UpdateEnrollmentGroupAsync().ConfigureAwait(false);
-            await DeleteEnrollmentGroupAsync().ConfigureAwait(false);
+            List<EnrollmentGroup> enrollments = await CreateEnrollmentGroupAsync().ConfigureAwait(false);
+            await UpdateEnrollmentGroupAsync(enrollments).ConfigureAwait(false);
+            await DeleteEnrollmentGroupAsync(enrollments).ConfigureAwait(false);
         }
 
         public async Task QueryEnrollmentGroupAsync()
@@ -55,7 +59,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             }
         }
 
-        public async Task CreateEnrollmentGroupAsync()
+        public async Task<List<EnrollmentGroup>> CreateEnrollmentGroupAsync()
         {
             Console.WriteLine("\nCreating a new enrollmentGroup...");
             X509Attestation attestation = new X509Attestation(
@@ -70,17 +74,27 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             enrollmentGroup.IotHubHostName = IotHubHostName;        // This is mandatory if the DPS Allocation Policy is "Static"
             Console.WriteLine(JsonConvert.SerializeObject(enrollmentGroup, Formatting.Indented));
 
-            Console.WriteLine("\nAdding new enrollmentGroup...");
-            EnrollmentGroup enrollmentGroupResult =
-                await _provisioningServiceClient.CreateOrUpdateEnrollmentGroupAsync(EnrollmentGroupId, enrollmentGroup).ConfigureAwait(false);
-            Console.WriteLine("\nEnrollmentGroup created with success.");
-            Console.WriteLine(JsonConvert.SerializeObject(enrollmentGroupResult, Formatting.Indented));
+            List<EnrollmentGroup> enrollmentGroups = new List<EnrollmentGroup>() { enrollmentGroup };
+            EnrollmentGroupOperation enrollmentGroupOperation = new EnrollmentGroupOperation(enrollmentGroups, OperationCreate);
+            Console.WriteLine("\nRunning the operation to create the Enrollment Group...");
+            EnrollmentOperationResult enrollmentGroupOperationResult =
+                await _provisioningServiceClient.RunEnrollmentGroupsOperationAsync(enrollmentGroupOperation).ConfigureAwait(false);
+            Console.WriteLine("\nResult of the Create enrollment...");
+            Console.WriteLine(enrollmentGroupOperationResult.IsSuccessful ? "Succeeded" : "Failed");
+
+            return enrollmentGroups;
         }
 
-        public async Task UpdateEnrollmentGroupAsync()
+        public async Task UpdateEnrollmentGroupAsync(List<EnrollmentGroup> enrollmentGroups)
         {
-            EnrollmentGroup enrollmentGroup = await GetEnrollmentGroupInfoAsync().ConfigureAwait(false);
-            enrollmentGroup.InitialTwin = new InitialTwin(
+            List<EnrollmentGroup> updatedEnrollments = new List<EnrollmentGroup>();
+            foreach (EnrollmentGroup enrollmentGroup in enrollmentGroups)
+            {
+                String groupId = enrollmentGroup.EnrollmentGroupId;
+                Console.WriteLine($"\nGetting the {nameof(enrollmentGroup)} information for {groupId}...");
+                EnrollmentGroup enrollment =
+                    await _provisioningServiceClient.GetEnrollmentGroupAsync(groupId).ConfigureAwait(false);
+                enrollment.InitialTwin = new InitialTwin(
                 null,
                 new InitialTwinProperties(
                     new TwinCollection(
@@ -88,26 +102,25 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
                         {
                             { "Brand", "Contoso" }
                         })));
-            Console.WriteLine("\nUpdating the enrollmentGroup information...");
-            EnrollmentGroup getResult =
-                await _provisioningServiceClient.CreateOrUpdateEnrollmentGroupAsync(EnrollmentGroupId, enrollmentGroup, enrollmentGroup.Etag).ConfigureAwait(false);
-            Console.WriteLine(JsonConvert.SerializeObject(getResult, Formatting.Indented));
+                updatedEnrollments.Add(enrollment);
+            }
+
+            var enrollmentGroupOperation = new EnrollmentGroupOperation(updatedEnrollments, OperationUpdate);
+            Console.WriteLine("\nRunning the operation to update the Enrollment Group...");
+            EnrollmentOperationResult enrollmentGroupOperationResult =
+                await _provisioningServiceClient.RunEnrollmentGroupsOperationAsync(enrollmentGroupOperation).ConfigureAwait(false);
+            Console.Write("\nResult of the Update enrollment...");
+            Console.WriteLine(enrollmentGroupOperationResult.IsSuccessful ? "Succeeded" : "Failed");
         }
 
-
-        public async Task<EnrollmentGroup> GetEnrollmentGroupInfoAsync()
+        public async Task DeleteEnrollmentGroupAsync(List<EnrollmentGroup> enrollmentGroups)
         {
-            Console.WriteLine("\nGetting the enrollmentGroup information...");
-            EnrollmentGroup getResult =
-                await _provisioningServiceClient.GetEnrollmentGroupAsync(EnrollmentGroupId).ConfigureAwait(false);
-            Console.WriteLine(JsonConvert.SerializeObject(getResult, Formatting.Indented));
-            return getResult;
-        }
-
-        public async Task DeleteEnrollmentGroupAsync()
-        {
-            Console.WriteLine("\nDeleting the enrollmentGroup...");
-            await _provisioningServiceClient.DeleteEnrollmentGroupAsync(EnrollmentGroupId).ConfigureAwait(false);
+            var enrollmentGroupsOperation = new EnrollmentGroupOperation(enrollmentGroups, OperationDelete);
+            Console.WriteLine("\nRunning the operation to delete the Enrollment Groups...");
+            EnrollmentOperationResult enrollmentGroupsOperationResult =
+                await _provisioningServiceClient.RunEnrollmentGroupsOperationAsync(enrollmentGroupsOperation).ConfigureAwait(false);
+            Console.Write("\nResult of the Delete enrollment...");
+            Console.WriteLine(enrollmentGroupsOperationResult.IsSuccessful ? "Succeeded" : "Failed");
         }
     }
 }
