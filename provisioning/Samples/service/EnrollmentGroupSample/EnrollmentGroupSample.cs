@@ -62,15 +62,13 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         public async Task<List<EnrollmentGroupRequest>> CreateEnrollmentGroupAsync()
         {
             Console.WriteLine("\nCreating a new enrollmentGroup...");
-            var attestation = new X509AttestationRequest(
-                signingCertificates: new X509CertificatesRequest(
-                    new X509CertificateWithInfoRequest(Convert.ToBase64String(_groupIssuerCertificate.Export(X509ContentType.Cert)))
-                ));
-            var attestationMechanism = new AttestationMechanismRequest(X509AttestationMechanism, x509: attestation);
+            var attestation = new X509CertificatesRequest(
+                primary: new X509CertificateWithInfoRequest(Convert.ToBase64String(_groupIssuerCertificate.Export(X509ContentType.Cert))));
+
             var enrollmentGroup =
-                    new EnrollmentGroupRequest(
+                    new X509CertificateEnrollmentGroupRequest(
                             EnrollmentGroupId,
-                            attestationMechanism);
+                            attestation);
             enrollmentGroup.IotHubHostName = IotHubHostName;        // This is mandatory if the DPS Allocation Policy is "Static"
             Console.WriteLine(JsonConvert.SerializeObject(enrollmentGroup, Formatting.Indented));
 

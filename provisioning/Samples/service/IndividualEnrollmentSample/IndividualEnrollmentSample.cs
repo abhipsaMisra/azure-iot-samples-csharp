@@ -5,6 +5,7 @@ using Microsoft.Azure.Devices.Provisioning.Service.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
@@ -12,7 +13,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
     using DeviceCapabilities = Microsoft.Azure.Devices.Provisioning.Service.Models.DeviceCapabilities;
     public class EnrollmentSample
     {
-        private const string RegistrationId = "myvalid-registratioid-csharp";
+        private const string RegistrationIdTpm = "myvalid-registratioid-csharp-Tpm";
         private const string TpmEndorsementKey =
             "AToAAQALAAMAsgAgg3GXZ0SEs/gakMyNRqXXJP1S124GUgtk8qHaGzMUaaoABgCAAEMAEAgAAAAAAAEAxsj2gUS" +
             "cTk1UjuioeTlfGYZrrimExB+bScH75adUMRIi2UOMxG1kw4y+9RW/IVoMl4e620VxZad0ARX2gUqVjYO7KPVt3d" +
@@ -26,7 +27,9 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         private DeviceCapabilities OptionalEdgeCapabilityEnabled = new DeviceCapabilities {IotEdge = true };
         private DeviceCapabilities OptionalEdgeCapabilityDisabled = new DeviceCapabilities { IotEdge = false };
 
-		private readonly string TpmAttestationType = "tpm";
+        private const string RegistrationIdX509 = "myvalid-registratioid-csharp-x509";
+        X509Certificate2 _clientCertificate;
+
 		private const string IotHubHostName = "my-iothub-hostname";
         ProvisioningServiceClient _provisioningServiceClient;
 
@@ -34,9 +37,10 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         private readonly string OperationUpdate = "update";
         private readonly string OperationDelete = "delete";
 
-        public EnrollmentSample(ProvisioningServiceClient provisioningServiceClient)
+        public EnrollmentSample(ProvisioningServiceClient provisioningServiceClient, X509Certificate2 clientCertificate)
         {
             _provisioningServiceClient = provisioningServiceClient;
+            _clientCertificate = clientCertificate;
         }
 
         public async Task RunSampleAsync()
@@ -44,9 +48,10 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             await QueryIndividualEnrollmentsAsync().ConfigureAwait(false);
 
             // COMMENT: this does not look good - create returns the request object
-            List<IndividualEnrollmentRequest> enrollmentRequest = await CreateIndividualEnrollmentTpmAsync().ConfigureAwait(false);
-            await UpdateIndividualEnrollmentAsync(enrollmentRequest).ConfigureAwait(false);
-            await DeleteIndividualEnrollmentAsync(enrollmentRequest).ConfigureAwait(false);            
+            List<IndividualEnrollmentRequest> enrollmentRequestTpm = await CreateIndividualEnrollmentTpmAsync().ConfigureAwait(false);
+            List<IndividualEnrollmentRequest> enrollmentRequestX509 = await CreateIndividualEnrollmentX509Async().ConfigureAwait(false);
+            await UpdateIndividualEnrollmentAsync(enrollmentRequestTpm).ConfigureAwait(false);
+            await DeleteIndividualEnrollmentAsync(enrollmentRequestTpm).ConfigureAwait(false);            
         }
 
         public async Task QueryIndividualEnrollmentsAsync()
@@ -63,19 +68,15 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
         public async Task<List<IndividualEnrollmentRequest>> CreateIndividualEnrollmentTpmAsync()
         {
-            Console.WriteLine("\nCreating a new individualEnrollment...");
+            Console.WriteLine("\nCreating a new TPM individualEnrollment...");
             TpmAttestation attestation = new TpmAttestation(TpmEndorsementKey);
-            var attestationMechanism = new AttestationMechanismRequest(TpmAttestationType, attestation);
-            var individualEnrollment =
-                    new IndividualEnrollmentRequest(
-                            RegistrationId,
-                            attestationMechanism);
+            var tpmEnrollmentRequest = new TpmIndividualEnrollmentRequest(RegistrationIdTpm, attestation);
 
             // The following parameters are optional:
-            individualEnrollment.DeviceId = OptionalDeviceId;
-            individualEnrollment.ProvisioningStatus = OptionalProvisioningStatus;
+            tpmEnrollmentRequest.DeviceId = OptionalDeviceId;
+            tpmEnrollmentRequest.ProvisioningStatus = OptionalProvisioningStatus;
             IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso"} };
-            individualEnrollment.InitialTwin = new InitialTwin(
+            tpmEnrollmentRequest.InitialTwin = new InitialTwin(
                 null,
                 new InitialTwinProperties(
                     new Models.TwinCollection(
@@ -85,10 +86,46 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
                             { "Color", "White" }
                         })
                     ));
-            individualEnrollment.Capabilities = OptionalEdgeCapabilityEnabled;
-            individualEnrollment.IotHubHostName = IotHubHostName;       // This is mandatory if the DPS Allocation Policy is "Static"
+            tpmEnrollmentRequest.Capabilities = OptionalEdgeCapabilityEnabled;
+            tpmEnrollmentRequest.IotHubHostName = IotHubHostName;       // This is mandatory if the DPS Allocation Policy is "Static"
 
-            var individualEnrollments = new List<IndividualEnrollmentRequest>() { individualEnrollment };
+            var individualEnrollments = new List<IndividualEnrollmentRequest>() { tpmEnrollmentRequest };
+            IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(individualEnrollments, OperationCreate);
+            Console.WriteLine("\nRunning the operation to create the individualEnrollments...");
+            EnrollmentOperationResult individualEnrollmentOperationResult =
+                await _provisioningServiceClient.RunIndividualEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
+            Console.WriteLine("\nResult of the Create enrollment...");
+            Console.WriteLine(individualEnrollmentOperationResult.IsSuccessful ? "Succeeded" : "Failed");
+
+            return individualEnrollments;
+        }
+
+        public async Task<List<IndividualEnrollmentRequest>> CreateIndividualEnrollmentX509Async()
+        {
+            Console.WriteLine("\nCreating a new X509 individualEnrollment...");
+            var x509Certificate = new X509CertificatesRequest(
+                primary: new X509CertificateWithInfoRequest(Convert.ToBase64String(_clientCertificate.Export(X509ContentType.Cert))));
+
+            var x509EnrollmentRequest = new X509CertificateIndividualEnrollmentRequest(RegistrationIdX509, x509Certificate);
+
+            // The following parameters are optional:
+            x509EnrollmentRequest.DeviceId = OptionalDeviceId;
+            x509EnrollmentRequest.ProvisioningStatus = OptionalProvisioningStatus;
+            IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso" } };
+            x509EnrollmentRequest.InitialTwin = new InitialTwin(
+                null,
+                new InitialTwinProperties(
+                    new Models.TwinCollection(
+                        new Dictionary<string, object>() {
+                            { "Brand", "Contoso" },
+                            { "Model", "SSC4" },
+                            { "Color", "White" }
+                        })
+                    ));
+            x509EnrollmentRequest.Capabilities = OptionalEdgeCapabilityEnabled;
+            x509EnrollmentRequest.IotHubHostName = IotHubHostName;       // This is mandatory if the DPS Allocation Policy is "Static"
+
+            var individualEnrollments = new List<IndividualEnrollmentRequest>() { x509EnrollmentRequest };
             IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(individualEnrollments, OperationCreate);
             Console.WriteLine("\nRunning the operation to create the individualEnrollments...");
             EnrollmentOperationResult individualEnrollmentOperationResult =
