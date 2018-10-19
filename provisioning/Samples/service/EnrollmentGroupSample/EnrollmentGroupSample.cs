@@ -87,14 +87,19 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
         public async Task UpdateEnrollmentGroupAsync(List<EnrollmentGroupRequest> enrollmentGroups)
         {
-            var updatedEnrollments = new List<EnrollmentGroupResponse>();
+            var updatedEnrollments = new List<EnrollmentGroupRequest>();
             foreach (EnrollmentGroupRequest enrollmentGroup in enrollmentGroups)
             {
                 String groupId = enrollmentGroup.EnrollmentGroupId;
                 Console.WriteLine($"\nGetting the {nameof(enrollmentGroup)} information for {groupId}...");
                 EnrollmentGroupResponse enrollment =
                     await _provisioningServiceClient.GetEnrollmentGroupAsync(groupId).ConfigureAwait(false);
-                enrollment.InitialTwin = new InitialTwin(
+
+                // COMMENT: Need to copy all properties over??? Can do selective update of only required fields???
+                var enrollmentRequest = new EnrollmentGroupRequest();
+                enrollmentRequest.EnrollmentGroupId = enrollment.EnrollmentGroupId;
+                enrollmentRequest.Etag = enrollment.Etag;
+                enrollmentRequest.InitialTwin = new InitialTwin(
                 null,
                 new InitialTwinProperties(
                     new TwinCollection(
@@ -102,7 +107,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
                         {
                             { "Brand", "Contoso" }
                         })));
-                updatedEnrollments.Add(enrollment);
+                updatedEnrollments.Add(enrollmentRequest);
             }
 
             var enrollmentGroupOperation = new EnrollmentGroupOperation(updatedEnrollments, OperationUpdate);

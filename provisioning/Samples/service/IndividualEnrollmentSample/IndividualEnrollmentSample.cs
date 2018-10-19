@@ -101,7 +101,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
         public async Task UpdateIndividualEnrollmentAsync(List<IndividualEnrollmentRequest> individualEnrollments)
         {
-            var updatedEnrollments = new List<IndividualEnrollmentResponse>();
+            var updatedEnrollments = new List<IndividualEnrollmentRequest>();
             foreach (IndividualEnrollmentRequest individualEnrollment in individualEnrollments)
             {
                 String registrationId = individualEnrollment.RegistrationId;
@@ -109,11 +109,13 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
                 IndividualEnrollmentResponse enrollment =
                     await _provisioningServiceClient.GetIndividualEnrollmentAsync(registrationId).ConfigureAwait(false);
 
-                enrollment.DeviceId = "updated_the_device_id";
-                updatedEnrollments.Add(enrollment);
+                // COMMENT: Need to copy all properties over??? Can do selective update of only required fields???
+                var enrollmentRequest = new IndividualEnrollmentRequest();
+                enrollmentRequest.RegistrationId = enrollment.RegistrationId;
+                enrollmentRequest.Etag = enrollment.Etag;
+                enrollmentRequest.DeviceId = "updated_the_device_id";
+                updatedEnrollments.Add(enrollmentRequest);
             }
-
-            // COMMENT: if we send IndividualEnrollmentRequest object for update, it does not have Etag???
 
             IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(updatedEnrollments, OperationUpdate);
             Console.WriteLine("\nRunning the operation to update the individualEnrollments...");
