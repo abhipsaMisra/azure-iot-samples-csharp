@@ -23,11 +23,11 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         // Optional parameters
         private const string OptionalDeviceId = "iothubtpmdevice1";
         private const string OptionalProvisioningStatus = "enabled";
-        private DeviceCapabilities OptionalEdgeCapabilityEnabled = new DeviceCapabilities {IotEdge = true };
+        private DeviceCapabilities OptionalEdgeCapabilityEnabled = new DeviceCapabilities { IotEdge = true };
         private DeviceCapabilities OptionalEdgeCapabilityDisabled = new DeviceCapabilities { IotEdge = false };
 
-		private readonly string TpmAttestationType = "tpm";
-		private const string IotHubHostName = "my-iothub-hostname";
+        private readonly string TpmAttestationType = "tpm";
+        private const string IotHubHostName = "my-iothub-hostname";
         ProvisioningServiceClient _provisioningServiceClient;
 
         private readonly string OperationCreate = "create";
@@ -43,9 +43,9 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         {
             await QueryIndividualEnrollmentsAsync().ConfigureAwait(false);
 
-            List<Enrollment> enrollments = await CreateIndividualEnrollmentTpmAsync().ConfigureAwait(false);
+            List<IndividualEnrollment> enrollments = await CreateIndividualEnrollmentTpmAsync().ConfigureAwait(false);
             await UpdateIndividualEnrollmentAsync(enrollments).ConfigureAwait(false);
-            await DeleteIndividualEnrollmentAsync(enrollments).ConfigureAwait(false);            
+            await DeleteIndividualEnrollmentAsync(enrollments).ConfigureAwait(false);
         }
 
         public async Task QueryIndividualEnrollmentsAsync()
@@ -60,7 +60,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             }
         }
 
-        public async Task<List<Enrollment>> CreateIndividualEnrollmentTpmAsync()
+        public async Task<List<IndividualEnrollment>> CreateIndividualEnrollmentTpmAsync()
         {
             Console.WriteLine("\nCreating a new individualEnrollment...");
             TpmAttestation attestation = new TpmAttestation(TpmEndorsementKey);
@@ -73,7 +73,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             // The following parameters are optional:
             individualEnrollment.DeviceId = OptionalDeviceId;
             individualEnrollment.ProvisioningStatus = OptionalProvisioningStatus;
-            IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso"} };
+            IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso" } };
             individualEnrollment.InitialTwin = new InitialTwin(
                 null,
                 new InitialTwinProperties(
@@ -87,20 +87,20 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             individualEnrollment.Capabilities = OptionalEdgeCapabilityEnabled;
             individualEnrollment.IotHubHostName = IotHubHostName;       // This is mandatory if the DPS Allocation Policy is "Static"
 
-            var individualEnrollments = new List<Enrollment>() { individualEnrollment };
-            var individualnrollmentOperation = new EnrollmentOperation(individualEnrollments, OperationCreate);
+            List<IndividualEnrollment> individualEnrollments = new List<IndividualEnrollment>() { individualEnrollment };
+            IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(individualEnrollments, OperationCreate);
             Console.WriteLine("\nRunning the operation to create the individualEnrollments...");
             EnrollmentOperationResult individualEnrollmentOperationResult =
-                await _provisioningServiceClient.RunEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
+                await _provisioningServiceClient.RunIndividualEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
             Console.WriteLine("\nResult of the Create enrollment...");
             Console.WriteLine(individualEnrollmentOperationResult.IsSuccessful ? "Succeeded" : "Failed");
 
             return individualEnrollments;
         }
 
-        public async Task UpdateIndividualEnrollmentAsync(List<Enrollment> individualEnrollments)
+        public async Task UpdateIndividualEnrollmentAsync(List<IndividualEnrollment> individualEnrollments)
         {
-            var updatedEnrollments = new List<Enrollment>();
+            List<IndividualEnrollment> updatedEnrollments = new List<IndividualEnrollment>();
             foreach (IndividualEnrollment individualEnrollment in individualEnrollments)
             {
                 String registrationId = individualEnrollment.RegistrationId;
@@ -111,20 +111,20 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
                 updatedEnrollments.Add(enrollment);
             }
 
-            var individualnrollmentOperation = new EnrollmentOperation(updatedEnrollments, OperationUpdate);
+            IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(updatedEnrollments, OperationUpdate);
             Console.WriteLine("\nRunning the operation to update the individualEnrollments...");
             EnrollmentOperationResult individualEnrollmentOperationResult =
-                await _provisioningServiceClient.RunEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
+                await _provisioningServiceClient.RunIndividualEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
             Console.Write("\nResult of the Update enrollment...");
             Console.WriteLine(individualEnrollmentOperationResult.IsSuccessful ? "Succeeded" : "Failed");
         }
 
-        public async Task DeleteIndividualEnrollmentAsync(List<Enrollment> individualEnrollments)
+        public async Task DeleteIndividualEnrollmentAsync(List<IndividualEnrollment> individualEnrollments)
         {
-            var individualnrollmentOperation = new EnrollmentOperation(individualEnrollments, OperationDelete);
+            IndividualEnrollmentOperation individualnrollmentOperation = new IndividualEnrollmentOperation(individualEnrollments, OperationDelete);
             Console.WriteLine("\nRunning the operation to delete the individualEnrollments...");
             EnrollmentOperationResult individualEnrollmentOperationResult =
-                await _provisioningServiceClient.RunEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
+                await _provisioningServiceClient.RunIndividualEnrollmentOperationAsync(individualnrollmentOperation).ConfigureAwait(false);
             Console.Write("\nResult of the Delete enrollment...");
             Console.WriteLine(individualEnrollmentOperationResult.IsSuccessful ? "Succeeded" : "Failed");
         }

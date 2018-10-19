@@ -1,6 +1,6 @@
-{
+		{
   "profiles": {
-    "EnrollmentSample": {
+    "EnrollmentGroupSample": {
       "commandName": "Project",
       "environmentVariables": {
         "PROVISIONING_CONNECTION_STRING": "<yourIoTHubConnectionString>"

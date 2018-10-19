@@ -1,8 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Microsoft.Rest;
 using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 {
@@ -18,27 +18,22 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
         public static int Main(string[] args)
         {
-            if (string.IsNullOrEmpty(s_connectionString) && args.Length > 0)
+            if (args.Length < 1)
             {
-                s_connectionString = args[0];
+                Console.WriteLine("EnrollmentGroupSample <groupIssuerCertificate.cer>");
+                return 1;
             }
 
-            ServiceConnectionString serviceConnectionString = ServiceConnectionString.Parse(s_connectionString);
-            var dpsUri = serviceConnectionString.HttpsEndpoint;
-            ServiceClientCredentials credentials;
+            X509Certificate2 certificate = new X509Certificate2(args[0]);
 
-            if (serviceConnectionString.SharedAccessSignature != null)
+            if (string.IsNullOrEmpty(s_connectionString) && args.Length > 1)
             {
-                credentials = new SharedAccessSignatureCredentials(serviceConnectionString.SharedAccessSignature);
-            }
-            else
-            {
-                credentials = new SharedAccessKeyCredentials(serviceConnectionString);
+                s_connectionString = args[1];
             }
 
-            using (var provisioningServiceClient = new ProvisioningServiceClient(dpsUri, credentials))
+            using (var provisioningServiceClient = ProvisioningServiceClientFactory.CreateFromConnectionString(s_connectionString))
             {
-                var sample = new EnrollmentSample(provisioningServiceClient);
+                var sample = new EnrollmentGroupSample(provisioningServiceClient, certificate);
                 sample.RunSampleAsync().GetAwaiter().GetResult();
             }
 
