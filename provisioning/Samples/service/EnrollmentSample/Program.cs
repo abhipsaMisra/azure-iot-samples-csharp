@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 {
@@ -17,14 +18,22 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
         public static int Main(string[] args)
         {
-            if (string.IsNullOrEmpty(s_connectionString) && args.Length > 0)
+            if (args.Length < 1)
             {
-                s_connectionString = args[0];
+                Console.WriteLine("EnrollmentGroupSample <groupIssuerCertificate.cer>");
+                return 1;
+            }
+
+            X509Certificate2 certificate = new X509Certificate2(args[0]);
+
+            if (string.IsNullOrEmpty(s_connectionString) && args.Length > 1)
+            {
+                s_connectionString = args[1];
             }
 
             using (var provisioningServiceClient = ProvisioningServiceClientFactory.CreateFromConnectionString(s_connectionString))
             {
-                var sample = new EnrollmentSample(provisioningServiceClient);
+                var sample = new EnrollmentSample(provisioningServiceClient, certificate);
                 sample.RunSampleAsync().GetAwaiter().GetResult();
             }
 

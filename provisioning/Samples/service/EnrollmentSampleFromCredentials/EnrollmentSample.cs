@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 {
-    using DeviceCapabilities = Microsoft.Azure.Devices.Provisioning.Service.Models.DeviceCapabilities;
     public class EnrollmentSample
     {
         private const string RegistrationId = "myvalid-registratioid-csharp";
@@ -23,11 +22,15 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         // Optional parameters
         private const string OptionalDeviceId = "iothubtpmdevice1";
         private const string OptionalProvisioningStatus = "enabled";
-        private DeviceCapabilities OptionalEdgeCapabilityEnabled = new DeviceCapabilities {IotEdge = true };
+        private DeviceCapabilities OptionalEdgeCapabilityEnabled = new DeviceCapabilities { IotEdge = true };
         private DeviceCapabilities OptionalEdgeCapabilityDisabled = new DeviceCapabilities { IotEdge = false };
 
-		private readonly string TpmAttestationType = "tpm";
-		private const string IotHubHostName = "my-iothub-hostname";
+        private readonly string OperationCreate = "create";
+        private readonly string OperationUpdate = "update";
+        private readonly string OperationDelete = "delete";
+
+        private readonly string TpmAttestationType = "tpm";
+        private const string IotHubHostName = "my-iothub-hostname";
         ProvisioningServiceClient _provisioningServiceClient;
 
         public EnrollmentSample(ProvisioningServiceClient provisioningServiceClient)
@@ -41,7 +44,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
 
             await CreateIndividualEnrollmentTpmAsync().ConfigureAwait(false);
             await UpdateIndividualEnrollmentAsync().ConfigureAwait(false);
-            await DeleteIndividualEnrollmentAsync().ConfigureAwait(false);            
+            await DeleteIndividualEnrollmentAsync().ConfigureAwait(false);
         }
 
         public async Task QueryIndividualEnrollmentsAsync()
@@ -69,7 +72,7 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             // The following parameters are optional:
             individualEnrollment.DeviceId = OptionalDeviceId;
             individualEnrollment.ProvisioningStatus = OptionalProvisioningStatus;
-            IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso"} };
+            IDictionary<string, object> pros = new Dictionary<string, object>() { { "Brand", "Contoso" } };
             individualEnrollment.InitialTwin = new InitialTwin(
                 null,
                 new InitialTwinProperties(
@@ -83,10 +86,12 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             individualEnrollment.Capabilities = OptionalEdgeCapabilityEnabled;
             individualEnrollment.IotHubHostName = IotHubHostName;       // This is mandatory if the DPS Allocation Policy is "Static"
 
+            List<IndividualEnrollment> individualEnrollments = new List<IndividualEnrollment>() { individualEnrollment };
+            BulkEnrollmentOperation enrollmentOperation = new BulkEnrollmentOperation(individualEnrollments, OperationCreate);
             Console.WriteLine("\nAdding new individualEnrollment...");
             Console.WriteLine(JsonConvert.SerializeObject(individualEnrollment, Formatting.Indented));
-            IndividualEnrollment individualEnrollmentResult =
-                await _provisioningServiceClient.CreateOrUpdateIndividualEnrollmentAsync(individualEnrollment.RegistrationId, individualEnrollment).ConfigureAwait(false);
+            BulkEnrollmentOperationResult individualEnrollmentResult =
+                await _provisioningServiceClient.RunBulkEnrollmentOperationAsync(enrollmentOperation).ConfigureAwait(false);
             Console.WriteLine(JsonConvert.SerializeObject(individualEnrollmentResult, Formatting.Indented));
         }
 
@@ -106,14 +111,20 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             individualEnrollment.InitialTwin.Properties.Desired.AdditionalProperties["Color"] = "Yellow";
             individualEnrollment.Capabilities = OptionalEdgeCapabilityDisabled;
 
-            IndividualEnrollment individualEnrollmentResult =
-                await _provisioningServiceClient.CreateOrUpdateIndividualEnrollmentAsync(individualEnrollment.RegistrationId, individualEnrollment, individualEnrollment.Etag).ConfigureAwait(false);
+            List<IndividualEnrollment> individualEnrollments = new List<IndividualEnrollment>() { individualEnrollment };
+            BulkEnrollmentOperation enrollmentOperation = new BulkEnrollmentOperation(individualEnrollments, OperationUpdate);
+            BulkEnrollmentOperationResult individualEnrollmentResult =
+                await _provisioningServiceClient.RunBulkEnrollmentOperationAsync(enrollmentOperation).ConfigureAwait(false);
             Console.WriteLine(JsonConvert.SerializeObject(individualEnrollmentResult, Formatting.Indented));
         }
 
         public async Task DeleteIndividualEnrollmentAsync()
         {
+            var individualEnrollment = await GetIndividualEnrollmentInfoAsync().ConfigureAwait(false);
+
             Console.WriteLine("\nDeleting the individualEnrollment...");
+            List<IndividualEnrollment> individualEnrollments = new List<IndividualEnrollment>() { individualEnrollment };
+            BulkEnrollmentOperation enrollmentOperation = new BulkEnrollmentOperation(individualEnrollments, OperationDelete);
             await _provisioningServiceClient.DeleteIndividualEnrollmentAsync(RegistrationId).ConfigureAwait(false);
         }
     }
