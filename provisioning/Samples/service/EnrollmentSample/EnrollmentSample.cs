@@ -71,8 +71,8 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             Console.WriteLine("\nCreating a new TPM individualEnrollment...");
             var individualEnrollmentTpm =
                     new TpmIndividualEnrollment(
-                            RegistrationIdTpm,
-                            TpmEndorsementKey);
+                            registrationId: RegistrationIdTpm,
+                            endorsementKey: TpmEndorsementKey);
 
             // The following parameters are optional:
             individualEnrollmentTpm.DeviceId = OptionalDeviceId;
@@ -106,8 +106,8 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             string x509PrimaryCert = Convert.ToBase64String(_individualCertificate.Export(X509ContentType.Cert));
             var individualEnrollmentX509 =
                     new X509IndividualEnrollment(
-                            RegistrationIdX509,
-                            x509PrimaryCert);
+                            registrationId: RegistrationIdX509,
+                            primaryCertificate: x509PrimaryCert);
 
             // The following parameters are optional:
             individualEnrollmentX509.DeviceId = OptionalDeviceId;

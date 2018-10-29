@@ -61,8 +61,9 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
             string x509PrimaryCert = Convert.ToBase64String(_groupIssuerCertificate.Export(X509ContentType.Cert));
             var enrollmentGroup =
                     new X509EnrollmentGroupFromCertificate(
-                            EnrollmentGroupId,
-                            x509PrimaryCert);
+                            enrollmentGroupId: EnrollmentGroupId,
+                            primaryCertificate: x509PrimaryCert);
+
             enrollmentGroup.IotHubHostName = IotHubHostName;        // This is mandatory if the DPS Allocation Policy is "Static"
             Console.WriteLine(JsonConvert.SerializeObject(enrollmentGroup, Formatting.Indented));
 
