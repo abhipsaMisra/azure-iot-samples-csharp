@@ -69,12 +69,10 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         public async Task CreateIndividualEnrollmentTpmAsync()
         {
             Console.WriteLine("\nCreating a new TPM individualEnrollment...");
-            TpmAttestation attestation = new TpmAttestation(TpmEndorsementKey);
-            AttestationMechanism attestationMechanism = new AttestationMechanism(TpmAttestationType, attestation);
-            IndividualEnrollment individualEnrollmentTpm =
-                    new IndividualEnrollment(
+            var individualEnrollmentTpm =
+                    new TpmIndividualEnrollment(
                             RegistrationIdTpm,
-                            attestationMechanism);
+                            TpmEndorsementKey);
 
             // The following parameters are optional:
             individualEnrollmentTpm.DeviceId = OptionalDeviceId;
@@ -105,15 +103,11 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         public async Task CreateIndividualEnrollmentX509Async()
         {
             Console.WriteLine("\nCreating a new X509 individualEnrollment...");
-            X509Attestation attestation = new X509Attestation(
-                signingCertificates: new X509Certificates(
-                    new X509CertificateWithInfo(Convert.ToBase64String(_individualCertificate.Export(X509ContentType.Cert)))
-                ));
-            AttestationMechanism attestationMechanism = new AttestationMechanism(X509AttestationMechanism, x509: attestation);
-            IndividualEnrollment individualEnrollmentX509 =
-                    new IndividualEnrollment(
+            string x509PrimaryCert = Convert.ToBase64String(_individualCertificate.Export(X509ContentType.Cert));
+            var individualEnrollmentX509 =
+                    new X509IndividualEnrollment(
                             RegistrationIdX509,
-                            attestationMechanism);
+                            x509PrimaryCert);
 
             // The following parameters are optional:
             individualEnrollmentX509.DeviceId = OptionalDeviceId;
