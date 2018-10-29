@@ -15,7 +15,6 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         private const string EnrollmentGroupId = "enrollmentgrouptest";
         ProvisioningServiceClient _provisioningServiceClient;
         X509Certificate2 _groupIssuerCertificate;
-		private readonly string X509AttestationMechanism = "x509";
 		private const string IotHubHostName = "my-iothub-hostname";
 
         public EnrollmentGroupSample(ProvisioningServiceClient provisioningServiceClient, X509Certificate2 groupIssuerCertificate)
@@ -58,15 +57,11 @@ namespace Microsoft.Azure.Devices.Provisioning.Service.Samples
         public async Task CreateEnrollmentGroupAsync()
         {
             Console.WriteLine("\nCreating a new enrollmentGroup...");
-            X509Attestation attestation = new X509Attestation(
-                signingCertificates: new X509Certificates(
-                    new X509CertificateWithInfo(Convert.ToBase64String(_groupIssuerCertificate.Export(X509ContentType.Cert)))
-                ));
-            AttestationMechanism attestationMechanism = new AttestationMechanism(X509AttestationMechanism, x509: attestation);
             EnrollmentGroup enrollmentGroup =
                     new EnrollmentGroup(
-                            EnrollmentGroupId,
-                            attestationMechanism);
+                            EnrollmentGroupId);  // How to set the attestation as required? ATLEAST and ONLY oneof Tpm, x509Certificate, x509CAReferences, Symmetric Key
+            enrollmentGroup.X509AttestationPrimaryCertificate = Convert.ToBase64String(_groupIssuerCertificate.Export(X509ContentType.Cert));
+
             enrollmentGroup.IotHubHostName = IotHubHostName;        // This is mandatory if the DPS Allocation Policy is "Static"
             Console.WriteLine(JsonConvert.SerializeObject(enrollmentGroup, Formatting.Indented));
 
