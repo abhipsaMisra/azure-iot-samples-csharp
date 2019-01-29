@@ -26,12 +26,6 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private static string DevicePrefix = "MultiplexingDevice_";
         private static int s_multiplexingDeviceCount = 100;
 
-        private const int MessageCount = 5;
-        private const int TemperatureThreshold = 30;
-        private static Random s_randomGenerator = new Random();
-        private float _temperature;
-        private float _humidity;
-
         public static int Main(string[] args)
         {
             if (string.IsNullOrEmpty(s_connectionString) && args.Length > 0)
