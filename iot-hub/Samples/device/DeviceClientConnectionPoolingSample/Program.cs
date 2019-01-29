@@ -39,66 +39,11 @@ namespace Microsoft.Azure.Devices.Client.Samples
                 s_connectionString = args[0];
             }
 
-            DeviceClient[] pool = CreateDeviceClientOverMultiplex(s_transportType, s_connectionString, s_multiplexingDeviceCount, DevicePrefix).GetAwaiter().GetResult();
-
-            var sample = new MessageSample(pool);
+            var sample = new MessageSample(s_transportType, s_connectionString, s_multiplexingDeviceCount, DevicePrefix);
             sample.RunSampleAsync().GetAwaiter().GetResult();
 
             Console.WriteLine("Done.\n");
             return 0;
-        }
-
-        private static async Task<DeviceClient[]> CreateDeviceClientOverMultiplex(TransportType transportType, string connectionString, int deviceCount, string prefix)
-        {
-            DeviceClient[] deviceClientPool = new DeviceClient[deviceCount];
-            Device[] devicePool = new Device[deviceCount];
-
-            for (int index = 0; index < deviceCount; index++)
-            {
-                devicePool[index] = await CreateDeviceAsync(prefix, index, connectionString).ConfigureAwait(false);
-
-                var auth = new DeviceAuthenticationWithRegistrySymmetricKey(devicePool[index].Id, devicePool[index].Authentication.SymmetricKey.PrimaryKey);
-                deviceClientPool[index] = DeviceClient.Create(
-                    GetHostName(connectionString),
-                    auth,
-                    new ITransportSettings[]
-                    {
-                        new AmqpTransportSettings(transportType)
-                        {
-                            AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
-                            {
-                                Pooling = true,
-                                MaxPoolSize = 10
-                            }
-                        }
-                    });
-                await deviceClientPool[index].OpenAsync().ConfigureAwait(true);
-            }
-
-            return deviceClientPool;
-        }
-
-        private static async Task<Device> CreateDeviceAsync(string prefix, int index, string connectionString)
-        {
-            string deviceName = prefix + index + "_" + Guid.NewGuid();
-            Device requestDevice = new Device(deviceName);
-
-            using (RegistryManager rm = RegistryManager.CreateFromConnectionString(connectionString))
-            {
-                Console.WriteLine($"{nameof(CreateDeviceAsync)}: Creating device {deviceName}.");                
-                Device device = await rm.AddDeviceAsync(requestDevice).ConfigureAwait(false);
-
-                requestDevice = device;
-
-                await rm.CloseAsync().ConfigureAwait(false);
-            }
-            return requestDevice;
-        }
-
-        public static string GetHostName(string iotHubConnectionString)
-        {
-            Regex regex = new Regex("HostName=([^;]+)", RegexOptions.None);
-            return regex.Match(iotHubConnectionString).Groups[1].Value;
         }
     }
 }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Devices.Client.Samples
@@ -15,19 +16,57 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private float _temperature;
         private float _humidity;
         private DeviceClient[] _deviceClientPool;
+        private static TransportType s_transportType;
+        private static string s_connectionString;
+        private static int s_deviceCount;
+        private static string s_prefix;
 
-        public MessageSample(DeviceClient[] deviceClientPool)
+        public MessageSample(TransportType transportType, string connectionString, int deviceCount, string prefix)
         {
-            _deviceClientPool = deviceClientPool ?? throw new ArgumentNullException(nameof(deviceClientPool));
+            s_transportType = transportType;
+            s_connectionString = connectionString;
+            s_deviceCount = deviceCount;
+            s_prefix = prefix;
         }
 
         public async Task RunSampleAsync()
         {
+            _deviceClientPool = await CreateDeviceClientOverMultiplex(s_transportType, s_connectionString, s_deviceCount, s_prefix).ConfigureAwait(false);
             foreach (DeviceClient deviceClient in _deviceClientPool)
             {
                 await SendEvent(deviceClient).ConfigureAwait(false);
             }
             //await ReceiveCommands().ConfigureAwait(false);
+        }
+
+        private async Task<DeviceClient[]> CreateDeviceClientOverMultiplex(TransportType transportType, string connectionString, int deviceCount, string prefix)
+        {
+            DeviceClient[] deviceClientPool = new DeviceClient[deviceCount];
+            Device[] devicePool = new Device[deviceCount];
+
+            for (int index = 0; index < deviceCount; index++)
+            {
+                devicePool[index] = await CreateDeviceAsync(prefix, index, connectionString).ConfigureAwait(false);
+
+                var auth = new DeviceAuthenticationWithRegistrySymmetricKey(devicePool[index].Id, devicePool[index].Authentication.SymmetricKey.PrimaryKey);
+                deviceClientPool[index] = DeviceClient.Create(
+                    GetHostName(connectionString),
+                    auth,
+                    new ITransportSettings[]
+                    {
+                        new AmqpTransportSettings(transportType)
+                        {
+                            AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
+                            {
+                                Pooling = true,
+                                MaxPoolSize = 10
+                            }
+                        }
+                    });
+                await deviceClientPool[index].OpenAsync().ConfigureAwait(true);
+            }
+
+            return deviceClientPool;
         }
 
         private async Task SendEvent(DeviceClient deviceClient)
@@ -77,5 +116,28 @@ namespace Microsoft.Azure.Devices.Client.Samples
         //        Console.WriteLine("\t{0}> Timed out", DateTime.Now.ToLocalTime());
         //    }
         //}
+
+        private static async Task<Device> CreateDeviceAsync(string prefix, int index, string connectionString)
+        {
+            string deviceName = prefix + index + "_" + Guid.NewGuid();
+            Device requestDevice = new Device(deviceName);
+
+            using (RegistryManager rm = RegistryManager.CreateFromConnectionString(connectionString))
+            {
+                Console.WriteLine($"{nameof(CreateDeviceAsync)}: Creating device {deviceName}.");
+                Device device = await rm.AddDeviceAsync(requestDevice).ConfigureAwait(false);
+
+                requestDevice = device;
+
+                await rm.CloseAsync().ConfigureAwait(false);
+            }
+            return requestDevice;
+        }
+
+        public static string GetHostName(string iotHubConnectionString)
+        {
+            Regex regex = new Regex("HostName=([^;]+)", RegexOptions.None);
+            return regex.Match(iotHubConnectionString).Groups[1].Value;
+        }
     }
 }
