@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -32,10 +33,16 @@ namespace Microsoft.Azure.Devices.Client.Samples
         public async Task RunSampleAsync()
         {
             _deviceClientPool = await CreateDeviceClientOverMultiplex(s_transportType, s_connectionString, s_deviceCount, s_prefix).ConfigureAwait(false);
-            foreach (DeviceClient deviceClient in _deviceClientPool)
+
+            var tasks = new List<Task>();
+            for (int index=0; index < s_deviceCount; index++)
             {
-                await SendEvent(deviceClient).ConfigureAwait(false);
+                tasks.Add(_deviceClientPool[index].SendEventAsync(new Message(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString()))));
             }
+            Console.WriteLine("Preparing the send messages for {0} devices", s_deviceCount);
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
             //await ReceiveCommands().ConfigureAwait(false);
         }
 
@@ -43,7 +50,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
         {
             DeviceClient[] deviceClientPool = new DeviceClient[deviceCount];
             Device[] devicePool = new Device[deviceCount];
-
+            var tasks = new List<Task>();
             for (int index = 0; index < deviceCount; index++)
             {
                 devicePool[index] = await CreateDeviceAsync(prefix, index, connectionString).ConfigureAwait(false);
@@ -63,17 +70,21 @@ namespace Microsoft.Azure.Devices.Client.Samples
                             }
                         }
                     });
-                await deviceClientPool[index].OpenAsync().ConfigureAwait(true);
+
+                tasks.Add(deviceClientPool[index].OpenAsync());
+                //await deviceClientPool[index].OpenAsync().ConfigureAwait(true);
             }
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             return deviceClientPool;
         }
 
-        private async Task SendEvent(DeviceClient deviceClient)
+        private async Task SendEvent(DeviceClient deviceClient, int index)
         {
             string dataBuffer;
 
-            Console.WriteLine("Device sending {0} messages to IoTHub...\n", MessageCount);
+            Console.WriteLine("Device sending {0} messages to IoTHub for Device {1}...\n", MessageCount, index);
 
             for (int count = 0; count < MessageCount; count++)
             {
