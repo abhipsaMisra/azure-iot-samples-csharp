@@ -11,12 +11,8 @@ namespace Microsoft.Azure.Devices.Client.Samples
 {
     public class MessageSample
     {
-        private const int MessageCount = 5;
-        private const int TemperatureThreshold = 30;
-        private static Random s_randomGenerator = new Random();
-        private float _temperature;
-        private float _humidity;
         private DeviceClient[] _deviceClientPool;
+        private Device[] _devicePool;
         private static TransportType s_transportType;
         private static string s_connectionString;
         private static int s_deviceCount;
@@ -28,40 +24,23 @@ namespace Microsoft.Azure.Devices.Client.Samples
             s_connectionString = connectionString;
             s_deviceCount = deviceCount;
             s_prefix = prefix;
+            _deviceClientPool = new DeviceClient[s_deviceCount];
+            _devicePool = new Device[s_deviceCount];
         }
 
         public async Task RunSampleAsync()
         {
-            _deviceClientPool = await CreateDeviceClientOverMultiplex(s_transportType, s_connectionString, s_deviceCount, s_prefix).ConfigureAwait(false);
-
-            var tasks = new List<Task>();
-            for (int index=0; index < s_deviceCount; index++)
+            for (int i = 0; i < s_deviceCount; i++)
             {
-                tasks.Add(_deviceClientPool[index].SendEventAsync(new Message(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString()))));
-            }
-            Console.WriteLine("Preparing the send messages for {0} devices", s_deviceCount);
+                _devicePool[i] = await CreateDeviceAsync(s_prefix, i, s_connectionString).ConfigureAwait(false);
+                var auth = new DeviceAuthenticationWithRegistrySymmetricKey(_devicePool[i].Id, _devicePool[i].Authentication.SymmetricKey.PrimaryKey);
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            //await ReceiveCommands().ConfigureAwait(false);
-        }
-
-        private async Task<DeviceClient[]> CreateDeviceClientOverMultiplex(TransportType transportType, string connectionString, int deviceCount, string prefix)
-        {
-            DeviceClient[] deviceClientPool = new DeviceClient[deviceCount];
-            Device[] devicePool = new Device[deviceCount];
-            var tasks = new List<Task>();
-            for (int index = 0; index < deviceCount; index++)
-            {
-                devicePool[index] = await CreateDeviceAsync(prefix, index, connectionString).ConfigureAwait(false);
-
-                var auth = new DeviceAuthenticationWithRegistrySymmetricKey(devicePool[index].Id, devicePool[index].Authentication.SymmetricKey.PrimaryKey);
-                deviceClientPool[index] = DeviceClient.Create(
-                    GetHostName(connectionString),
+                _deviceClientPool[i] = DeviceClient.Create(
+                    GetHostName(s_connectionString),
                     auth,
                     new ITransportSettings[]
                     {
-                        new AmqpTransportSettings(transportType)
+                        new AmqpTransportSettings(s_transportType)
                         {
                             AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings()
                             {
@@ -70,63 +49,20 @@ namespace Microsoft.Azure.Devices.Client.Samples
                             }
                         }
                     });
-
-                tasks.Add(deviceClientPool[index].OpenAsync());
-                //await deviceClientPool[index].OpenAsync().ConfigureAwait(true);
+                Console.WriteLine($"Device with ID {_devicePool[i].Id} is created.");
+                ExecuteOperation(_deviceClientPool[i]);
             }
-
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            return deviceClientPool;
         }
 
-        private async Task SendEvent(DeviceClient deviceClient, int index)
+        private static async Task ExecuteOperation(DeviceClient deviceClient)
         {
-            string dataBuffer;
-
-            Console.WriteLine("Device sending {0} messages to IoTHub for Device {1}...\n", MessageCount, index);
-
-            for (int count = 0; count < MessageCount; count++)
+            while (true)
             {
-                _temperature = s_randomGenerator.Next(20, 35);
-                _humidity = s_randomGenerator.Next(60, 80);
-                dataBuffer = $"{{\"messageId\":{count},\"temperature\":{_temperature},\"humidity\":{_humidity}}}";
-                Message eventMessage = new Message(Encoding.UTF8.GetBytes(dataBuffer));
-                eventMessage.Properties.Add("temperatureAlert", (_temperature > TemperatureThreshold) ? "true" : "false");
-                Console.WriteLine("\t{0}> Sending message: {1}, Data: [{2}]", DateTime.Now.ToLocalTime(), count, dataBuffer);
-
-                await deviceClient.SendEventAsync(eventMessage).ConfigureAwait(false);
+                Console.WriteLine("Sending Event...");
+                await deviceClient.SendEventAsync(new Message(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString()))).ConfigureAwait(false);
+                Console.WriteLine("Completed.");
             }
         }
-
-        //private async Task ReceiveCommands()
-        //{
-        //    Console.WriteLine("\nDevice waiting for commands from IoTHub...\n");
-        //    Console.WriteLine("Use the IoT Hub Azure Portal to send a message to this device.\n");
-
-        //    Message receivedMessage;
-        //    string messageData;
-
-        //    receivedMessage = await _deviceClient.ReceiveAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-
-        //    if (receivedMessage != null)
-        //    {
-        //        messageData = Encoding.ASCII.GetString(receivedMessage.GetBytes());
-        //        Console.WriteLine("\t{0}> Received message: {1}", DateTime.Now.ToLocalTime(), messageData);
-
-        //        int propCount = 0;
-        //        foreach (var prop in receivedMessage.Properties)
-        //        {
-        //            Console.WriteLine("\t\tProperty[{0}> Key={1} : Value={2}", propCount++, prop.Key, prop.Value);
-        //        }
-
-        //        await _deviceClient.CompleteAsync(receivedMessage).ConfigureAwait(false);
-        //    }
-        //    else
-        //    {
-        //        Console.WriteLine("\t{0}> Timed out", DateTime.Now.ToLocalTime());
-        //    }
-        //}
 
         private static async Task<Device> CreateDeviceAsync(string prefix, int index, string connectionString)
         {
