@@ -10,10 +10,10 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private static string _iothubConnectionString = Environment.GetEnvironmentVariable("IOTHUB_CONN_STRING_CSHARP");
         private static string _iothubDeviceConnectionString = Environment.GetEnvironmentVariable("IOTHUB_DEVICE_LEVEL_CONN_STRING");
         
-        private const int maxPoolSize = 1;
+        private const int maxPoolSize = 10;
         private const bool pooling = true;
 
-        private const int MessageCount = 1;
+        private const int MessageCount = 5;
 
         private string _deviceId;
         private DeviceClient _deviceClient;
@@ -30,6 +30,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
             _deviceClient = DeviceClient.CreateFromConnectionString(_iothubDeviceConnectionString, _deviceId, transportSettings);
 
             await SendEventAsync().ConfigureAwait(false);
+            await ReceiveCommandsAsync().ConfigureAwait(false);
 
             await _deviceClient.SetMethodHandlerAsync(nameof(WriteToConsole), WriteToConsole, null).ConfigureAwait(false);
             Console.WriteLine("Waiting 60 seconds for IoT Hub method calls ...");
@@ -42,11 +43,11 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private async Task GetDeviceAsync()
         {
             RegistryManager registryManager = RegistryManager.CreateFromConnectionString(_iothubConnectionString);
-            Device device = await registryManager.GetDeviceAsync(_deviceId);
+            Device device = await registryManager.GetDeviceAsync(_deviceId).ConfigureAwait(false);
 
             if (device == null)
             {
-                device = await registryManager.AddDeviceAsync(new Device(_deviceId));
+                device = await registryManager.AddDeviceAsync(new Device(_deviceId)).ConfigureAwait(false);
             }
         }
 
@@ -89,8 +90,38 @@ namespace Microsoft.Azure.Devices.Client.Samples
             }
             finally
             {
+                Console.WriteLine($"Device {_deviceId} is done sending messages.");
                 await testListener.CloseAsync().ConfigureAwait(false);
             }            
+        }
+
+        private async Task ReceiveCommandsAsync()
+        {
+            Console.WriteLine("\nDevice waiting for commands from IoTHub...\n");
+            Console.WriteLine("Use the IoT Hub Azure Portal to send a message to this device.\n");
+
+            Message receivedMessage;
+            string messageData;
+
+            receivedMessage = await _deviceClient.ReceiveAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            if (receivedMessage != null)
+            {
+                messageData = Encoding.ASCII.GetString(receivedMessage.GetBytes());
+                Console.WriteLine("\t{0}> Received message: {1}", DateTime.Now.ToLocalTime(), messageData);
+
+                int propCount = 0;
+                foreach (var prop in receivedMessage.Properties)
+                {
+                    Console.WriteLine("\t\tProperty[{0}> Key={1} : Value={2}", propCount++, prop.Key, prop.Value);
+                }
+
+                await _deviceClient.CompleteAsync(receivedMessage).ConfigureAwait(false);
+            }
+            else
+            {
+                Console.WriteLine("\t{0}> Timed out", DateTime.Now.ToLocalTime());
+            }
         }
 
         private Task<MethodResponse> WriteToConsole(MethodRequest methodRequest, object userContext)
