@@ -10,24 +10,33 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private static string _iothubConnectionString = Environment.GetEnvironmentVariable("IOTHUB_CONN_STRING_CSHARP");
         private static string _iothubDeviceConnectionString = Environment.GetEnvironmentVariable("IOTHUB_DEVICE_LEVEL_CONN_STRING");
         
-        private const int maxPoolSize = 10;
+        private const int maxPoolSize = 1;
         private const bool pooling = true;
 
-        private const int MessageCount = 5;
+        private const int MessageCount = 1;
 
         private string _deviceId;
         private DeviceClient _deviceClient;
 
         public ConnectionPoolSample(string deviceId)
         {
-            _deviceId = deviceId;
+            _deviceId = deviceId + Guid.NewGuid().ToString();
         }
 
         public async Task RunSampleAsync()
         {
             await GetDeviceAsync().ConfigureAwait(false);
-            _deviceClient = GetDeviceClient();
+            var transportSettings = GetTransportSettings();
+            _deviceClient = DeviceClient.CreateFromConnectionString(_iothubDeviceConnectionString, _deviceId, transportSettings);
+
             await SendEventAsync().ConfigureAwait(false);
+
+            await _deviceClient.SetMethodHandlerAsync(nameof(WriteToConsole), WriteToConsole, null).ConfigureAwait(false);
+            Console.WriteLine("Waiting 60 seconds for IoT Hub method calls ...");
+            Console.WriteLine($"Use the IoT Hub Azure Portal to call method {nameof(WriteToConsole)} for device {_deviceId} within this time.");
+            await Task.Delay(60 * 1000).ConfigureAwait(false);
+
+            await _deviceClient.CloseAsync().ConfigureAwait(false);
         }
 
         private async Task GetDeviceAsync()
@@ -39,14 +48,6 @@ namespace Microsoft.Azure.Devices.Client.Samples
             {
                 device = await registryManager.AddDeviceAsync(new Device(_deviceId));
             }
-        }
-
-        private DeviceClient GetDeviceClient()
-        {
-            var transportSettings = GetTransportSettings();
-            var deviceClient = DeviceClient.CreateFromConnectionString(_iothubDeviceConnectionString, _deviceId, transportSettings);
-
-            return deviceClient;
         }
 
         private async Task SendEventAsync()
@@ -82,11 +83,25 @@ namespace Microsoft.Azure.Devices.Client.Samples
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Device {_deviceId} exception thrown: {ex.Message}");
+            }
             finally
             {
-                await _deviceClient.CloseAsync().ConfigureAwait(false);
                 await testListener.CloseAsync().ConfigureAwait(false);
             }            
+        }
+
+        private Task<MethodResponse> WriteToConsole(MethodRequest methodRequest, object userContext)
+        {
+            Console.WriteLine($"\t *** {nameof(WriteToConsole)} was called.");
+
+            Console.WriteLine();
+            Console.WriteLine("\t{0}", methodRequest.DataAsJson);
+            Console.WriteLine();
+
+            return Task.FromResult(new MethodResponse(new byte[0], 200));
         }
 
         private ITransportSettings[] GetTransportSettings()

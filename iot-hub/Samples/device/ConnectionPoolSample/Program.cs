@@ -14,7 +14,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private static string s_eventHubConsumerName = Environment.GetEnvironmentVariable("IOTHUB_EVENTHUB_CONSUMER_GROUP");
 
         private static string s_devicePrefix = "ConnectionPoolingDevice";
-        private static int s_maxDevices = 10;
+        private static int s_maxDevices = 3;
 
         public static int Main(string[] args)
         {   
@@ -30,7 +30,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
 
             for (int i=0; i<s_maxDevices; i++)
             {
-                var sample = new ConnectionPoolSample($"{s_devicePrefix}_{i}");
+                var sample = new ConnectionPoolSample($"{s_devicePrefix}_{i}_");
                 sample.RunSampleAsync().GetAwaiter().GetResult();
             }
 
