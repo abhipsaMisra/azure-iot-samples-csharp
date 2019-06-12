@@ -16,7 +16,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
         // - pass this value as a command-prompt argument
         // - set the IOTHUB_EVENTHUB_CONN_STRING environment variable 
         // - create a launchSettings.json (see launchSettings.json.template) containing the variable
-        private static string s_eventHubConnectionString = Environment.GetEnvironmentVariable("IOTHUB_EVENTHUB_CONN_STRING");
+        private static string s_eventHubConnectionString = Environment.GetEnvironmentVariable("IOTHUB_EVENTHUB_CONN_STRING_CSHARP");
         private static string s_eventHubCompatibleName = Environment.GetEnvironmentVariable("IOTHUB_EVENTHUB_COMPATIBLE_NAME");
         private static string s_eventHubConsumerGroup = Environment.GetEnvironmentVariable("IOTHUB_EVENTHUB_CONSUMER_GROUP");
         private static string s_deviceId = Environment.GetEnvironmentVariable("DEVICE_ID");

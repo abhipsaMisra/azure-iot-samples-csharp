@@ -79,9 +79,11 @@ namespace Microsoft.Azure.Devices.Client.Samples
             {
                 Console.WriteLine($"\n\n {nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: {events.Count()} events received.");
 
+                Console.WriteLine($"\n\n {nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: Printing only the events for DeviceID: {_deviceName}.");
                 var n = 1;
                 foreach (var eventData in events)
                 {
+                    bool printData = false;
                     try
                     {
                         string data = Encoding.UTF8.GetString(eventData.Body.ToArray());
@@ -89,14 +91,18 @@ namespace Microsoft.Azure.Devices.Client.Samples
                         IDictionary<string, object> properties = eventData.Properties;
                         if (properties != null)
                         {
-                            Console.WriteLine($"[Message_Test]Properties {n}:");
+                            if (printData) Console.WriteLine($">> Data {n}:");
                             foreach (var property in properties)
                             {
-                                Console.WriteLine($"[Message_Test]{property.Key}:{property.Value}");
+                                if (property.Key == "iothub-connection-device-id" && (string)property.Value == _deviceName)
+                                {
+                                    printData = true;
+                                }
+                                if (printData) Console.WriteLine($"\t\t >>{property.Key}:{property.Value}");
                             }
                         }
 
-                        Console.WriteLine($"[Message_Test]Payload: {data}");
+                        if (printData) Console.WriteLine($"\t\t >>Payload: {data}");
                         n++;
                     }
                     catch (Exception ex)
