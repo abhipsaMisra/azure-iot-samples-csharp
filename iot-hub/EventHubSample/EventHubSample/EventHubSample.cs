@@ -77,9 +77,9 @@ namespace Microsoft.Azure.Devices.Client.Samples
 
             while (events != null)
             {
-                Console.WriteLine($"\n\n {nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: {events.Count()} events received.");
+                Console.WriteLine($"\n{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: {events.Count()} events received.");
 
-                Console.WriteLine($"\n\n {nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: Printing only the events for DeviceID: {_deviceName}.");
+                Console.WriteLine($"\n{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: Printing only the events for DeviceID: {_deviceName}.");
                 var n = 1;
                 foreach (var eventData in events)
                 {
@@ -91,18 +91,18 @@ namespace Microsoft.Azure.Devices.Client.Samples
                         IDictionary<string, object> properties = eventData.Properties;
                         if (properties != null)
                         {
-                            if (printData) Console.WriteLine($">> Data {n}:");
                             foreach (var property in properties)
                             {
                                 if (property.Key == "iothub-connection-device-id" && (string)property.Value == _deviceName)
                                 {
                                     printData = true;
                                 }
-                                if (printData) Console.WriteLine($"\t\t >>{property.Key}:{property.Value}");
+                                if (printData) Console.WriteLine($"\t >>{property.Key}:{property.Value}");
                             }
                         }
 
-                        if (printData) Console.WriteLine($"\t\t >>Payload: {data}");
+                        if (printData) Console.WriteLine($"\t >>Payload: {data}");
+                        if (printData) Console.WriteLine($"\n");
                         n++;
                     }
                     catch (Exception ex)
