@@ -73,14 +73,14 @@ namespace Microsoft.Azure.Devices.Client.Samples
 
         private async Task ReceiveAllMessages(PartitionReceiver receiver)
         {
+            Console.WriteLine($"\n{nameof(EventHubSample)}: Printing the events received for DeviceID: {_deviceName}.");
+
             IEnumerable<EventData> events = await receiver.ReceiveAsync(int.MaxValue, TimeSpan.FromSeconds(OperationTimeoutInSeconds)).ConfigureAwait(false);
 
+            int totalEventsCount = 0;
             while (events != null)
             {
-                Console.WriteLine($"\n{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: {events.Count()} events received.");
-
-                Console.WriteLine($"\n{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: Printing only the events for DeviceID: {_deviceName}.");
-                var n = 1;
+                totalEventsCount += events.Count();
                 foreach (var eventData in events)
                 {
                     bool printData = false;
@@ -103,18 +103,18 @@ namespace Microsoft.Azure.Devices.Client.Samples
 
                         if (printData) Console.WriteLine($"\t >>Payload: {data}");
                         if (printData) Console.WriteLine($"\n");
-                        n++;
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: Cannot read eventData: {ex}");
+                        Console.WriteLine($"{nameof(EventHubSample)}: Cannot read eventData: {ex}");
                     }
                 }
 
                 events = await receiver.ReceiveAsync(int.MaxValue, TimeSpan.FromSeconds(OperationTimeoutInSeconds)).ConfigureAwait(false);
             }
 
-            Console.WriteLine($"{nameof(EventHubSample)}.{nameof(ReceiveAllMessages)}: No more events left to be received.");
+            Console.WriteLine($"\n{nameof(EventHubSample)}: No more events left to be received.");
+            Console.WriteLine($"\n{nameof(EventHubSample)}: Total events received on this EventHub partition: {totalEventsCount}.");
         }
     }
 }
